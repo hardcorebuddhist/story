@@ -53,7 +53,19 @@ router.post("/signup", async (req, res) => {
 
     const token = toJWT({ userId: newUser.id });
 
-    res.status(201).json({ token, user: newUser.dataValues });
+    const space = await Space.create({
+      title: `${newUser.name}'s space`,
+      userId: newUser.id,
+    });
+
+    res.status(201).json({
+      token,
+      user: newUser.dataValues,
+      space: {
+        ...space.dataValues,
+        stories: [],
+      },
+    });
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res
@@ -69,9 +81,14 @@ router.post("/signup", async (req, res) => {
 // - get the users email & name using only their token
 // - checking if a token is (still) valid
 router.get("/me", authMiddleware, async (req, res) => {
+  const space = await Space.findOne({
+    where: { userId: req.user.id },
+    include: [Story],
+    order: [[Story, "createdAt", "DESC"]],
+  });
   // don't send back the password hash
   delete req.user.dataValues["password"];
-  res.status(200).send({ ...req.user.dataValues });
+  res.status(200).send({ ...req.user.dataValues, space });
 });
 
 module.exports = router;
