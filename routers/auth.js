@@ -9,6 +9,8 @@ const { SALT_ROUNDS } = require("../config/constants");
 
 const router = new Router();
 
+// LOGIN including space and story
+
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -19,8 +21,15 @@ router.post("/login", async (req, res, next) => {
         .send({ message: "Please provide both email and password" });
     }
 
-    const user = await User.findOne({ where: { email } });
-
+    const user = await User.findOne({
+      where: { email },
+      include: {
+        model: Space,
+        include: [Story],
+        order: [[Story, "createdAt", "DESC"]],
+      },
+    });
+    console.log(user.space);
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(400).send({
         message: "User with that email not found or password incorrect",
@@ -35,6 +44,8 @@ router.post("/login", async (req, res, next) => {
     return res.status(400).send({ message: "Something went wrong, sorry" });
   }
 });
+
+// SIGN-UP + create new user's space
 
 router.post("/signup", async (req, res) => {
   const { email, password, name } = req.body;
@@ -88,7 +99,8 @@ router.get("/me", authMiddleware, async (req, res) => {
   });
   // don't send back the password hash
   delete req.user.dataValues["password"];
-  res.status(200).send({ ...req.user.dataValues, space });
+  // res.status(200).send({ ...req.user.dataValues, space });
+  res.status(200).send({ user: req.user.dataValues, space: space.dataValues });
 });
 
 module.exports = router;
